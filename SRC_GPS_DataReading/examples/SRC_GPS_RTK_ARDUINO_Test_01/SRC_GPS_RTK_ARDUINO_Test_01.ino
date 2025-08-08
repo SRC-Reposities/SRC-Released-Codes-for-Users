@@ -6,36 +6,70 @@
  * Phiên bản   : 2025/08/06
  *************************************************/
 
-#include "SRC_GPS_DataReading.h"  // Thư viện đọc dữ liệu GPS RTK
-#include <HardwareSerial.h>
+#include "SRC_GPS_DataReading.h"  // Thư viện đọc và xử lý dữ liệu GNGGA từ RTK
+#include <HardwareSerial.h>      // Thư viện hỗ trợ UART (Serial1, Serial2, v.v.)
 
-#define RTKSerialPort Serial1  // Cổng UART kết nối với mô-đun RTK
+// -------------------------- CẤU HÌNH CỔNG UART --------------------------
+// Ở Arduino MEGA/DUE: có sẵn nhiều cổng UART như Serial1, Serial2
+// Ở Arduino UNO: bạn cần dùng module UART ngoài (VD: SoftwareSerial hoặc chuyển qua STM32)
+#define RTKSerialPort Serial1  // Cổng UART kết nối với mô-đun GPS RTK
 
-SRC_GPS_DataReading gpsRTK; // Đối tượng xử lý dữ liệu GPS RTK
+// -------------------------- KHAI BÁO ĐỐI TƯỢNG --------------------------
+// Tạo một đối tượng kiểu SRC_GPS_DataReading để sử dụng các hàm xử lý RTK
+SRC_GPS_DataReading gpsRTK;
 
-// ---------------------- HÀM KHỞI TẠO ----------------------
+// -------------------------- HÀM SETUP --------------------------
 void setup() {
-  Serial.begin(115200); // Cổng UART mặc định để hiển thị dữ liệu ra Serial Monitor
-  gpsRTK.setup(100, RTKSerialPort); // Thiết lập module RTK với chu kỳ 100ms (~ổn định trong 10s)
+  // Khởi tạo cổng Serial chính để gửi dữ liệu lên máy tính qua cổng USB
+  // (Dùng để xem dữ liệu trên Serial Monitor trong Arduino IDE)
+  Serial.begin(115200);
+
+  // Thiết lập mô-đun RTK:
+  // - Tham số 100: số chu kỳ kiểm tra độ ổn định base (100 lần ~ 10s)
+  // - RTKSerialPort: cổng UART đang kết nối mô-đun RTK (Serial1)
+  gpsRTK.setup(100, RTKSerialPort);
 }
 
-// ---------------------- VÒNG LẶP CHÍNH ----------------------
+// -------------------------- VÒNG LẶP CHÍNH --------------------------
 void loop() {
+  // Gọi hàm đọc dữ liệu từ mô-đun RTK
+  // Nếu đọc thành công (đã parse được GNGGA hợp lệ) thì in ra
   if (gpsRTK.readData(RTKSerialPort)) {
-    // Hiển thị toạ độ GPS: vĩ độ, kinh độ, độ cao
-    Serial.print("Lat: ");    Serial.print(gpsRTK.GPSData.current_gps_long[0]);
-    Serial.print("\tLong: "); Serial.print(gpsRTK.GPSData.current_gps_long[1]);
-    Serial.print("\tAlt: ");  Serial.print(gpsRTK.GPSData.current_gps_long[2]);
 
-    // Hiển thị vị trí x, y, z theo đơn vị cm
+    // ---------- IN THÔNG TIN TOẠ ĐỘ GPS (gốc) ----------
+    // Dữ liệu lấy từ chuỗi GNGGA (chưa tính độ lệch so với base)
+    // Đơn vị:
+    //   - Lat/Lon: độ (nhân 10^7, cần chia lại nếu muốn in dạng thập phân)
+    //   - Alt: cm (centimet)
+
+    Serial.print("Lat: ");    
+    Serial.print(gpsRTK.GPSData.current_gps_long[0]);  // Vĩ độ
+    Serial.print("\tLong: "); 
+    Serial.print(gpsRTK.GPSData.current_gps_long[1]);  // Kinh độ
+    Serial.print("\tAlt: ");  
+    Serial.print(gpsRTK.GPSData.current_gps_long[2]);  // Độ cao
+
+    // ---------- IN TỌA ĐỘ ĐÃ CHUYỂN SANG HỆ TOẠ ĐỘ X/Y/Z ----------
+    // Đây là độ lệch so với điểm base (tọa độ mốc ban đầu)
+    // Đơn vị: cm (centimet)
+    // Hữu ích khi cần biết di chuyển bao nhiêu từ điểm gốc (base)
+
     Serial.print("\tx: "); Serial.print(gpsRTK.GPSData.pos_cm[0]);
     Serial.print("\ty: "); Serial.print(gpsRTK.GPSData.pos_cm[1]);
     Serial.print("\tz: "); Serial.print(gpsRTK.GPSData.pos_cm[2]);
 
-    // Trạng thái RTK (0: No Fix, 4: RTK Fix...)
-    Serial.print("\tstatus: "); Serial.print(gpsRTK.GPSData.RTK_Standard);
+    // ---------- IN TRẠNG THÁI FIX CỦA RTK ----------
+    // Trạng thái xác định độ tin cậy của dữ liệu:
+    //   - 0 = No solution (chưa có tín hiệu GPS)
+    //   - 1 = Float solution (dữ liệu chưa chính xác cao)
+    //   - 2 = Fixed solution (dữ liệu chính xác cao)
+    Serial.print("\tstatus: "); 
+    Serial.print(gpsRTK.GPSData.RTK_Standard);
 
-    // Hiển thị thời gian đo (timestamp)
-    Serial.print("\tdt: "); Serial.println(gpsRTK.GPSData.dt);
+    // ---------- IN THỜI GIAN GIỮA 2 LẦN NHẬN DỮ LIỆU ----------
+    // dt: khoảng thời gian (ms) giữa lần nhận hiện tại và lần trước
+    // Giúp đánh giá độ ổn định, trễ tín hiệu...
+    Serial.print("\tdt: "); 
+    Serial.println(gpsRTK.GPSData.dt);
   }
 }
