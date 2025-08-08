@@ -1,35 +1,41 @@
 /*************************************************
-* CHUONG TRINH TEST MODULE NRTK
-* Written by Dang Xuan Ba <badx@hcmute.edu.vn>
-* Hardware: STMF407VETX
-* Date of version: 2025/08/06
-*************************************************/
-#include "SRC_GPS_DataReading.h"  // Thư viện doc du lieu RTK
+ * CHƯƠNG TRÌNH TEST MODULE NRTK
+ * Tác giả     : Đặng Xuân Bá <badx@hcmute.edu.vn>
+ * Phần cứng   : STM32F407VETX
+ * Mô tả       : Đọc dữ liệu GPS RTK từ module NRTK
+ * Ngày tạo    : 2025/08/06
+ *************************************************/
+
+#include "SRC_GPS_DataReading.h"   // Thư viện đọc dữ liệu RTK
 #include <HardwareSerial.h>
 
-HardwareSerial RTKSerialPort(PB11, PB10); //Ho tro module F4V4, khi su dung voi Arduino thì có thể thay bang cac cong serial tuong ứng như Serial1 hoặc Serial2
-SRC_GPS_DataReading GPSRTKVar;
-// ------------------- HÀM KHỞI TẠO -------------------
-void setup() {	
-	Serial.begin(115200);  //Cai dat cong UART0
-	GPSRTKVar.setup(100, RTKSerialPort); //Cai dat module doc du lieu GPS RTK (100 ~ on dinh trong 10s)
-  
+// Khai báo cổng UART dùng cho mô-đun RTK (F4V4 hỗ trợ HardwareSerial với chân PB11, PB10)
+HardwareSerial RTKSerialPort(PB11, PB10);
+SRC_GPS_DataReading gpsRTK; // Đối tượng quản lý dữ liệu GPS RTK
+
+// ---------------------- HÀM KHỞI TẠO ----------------------
+void setup() {
+  Serial.begin(115200); // UART mặc định dùng để in dữ liệu ra màn hình
+  gpsRTK.setup(100, RTKSerialPort); // Thiết lập GPS RTK với khoảng ổn định 100ms (~10s)
 }
 
-// ------------------- VÒNG LẶP CHÍNH -------------------
+// ---------------------- VÒNG LẶP CHÍNH ----------------------
 void loop() {
-  if(GPSRTKVar.readData(RTKSerialPort)){
-    Serial.print("Lat: ");    Serial.print(GPSRTKVar.GPSData.current_gps_long[0]);
-    Serial.print("\tLong: "); Serial.print(GPSRTKVar.GPSData.current_gps_long[1]);
-    Serial.print("\tAlt: ");  Serial.print(GPSRTKVar.GPSData.current_gps_long[2]);
+  if (gpsRTK.readData(RTKSerialPort)) {
+    // In thông tin vị trí GPS: kinh độ, vĩ độ, độ cao
+    Serial.print("Lat: ");    Serial.print(gpsRTK.GPSData.current_gps_long[0]);
+    Serial.print("\tLong: "); Serial.print(gpsRTK.GPSData.current_gps_long[1]);
+    Serial.print("\tAlt: ");  Serial.print(gpsRTK.GPSData.current_gps_long[2]);
 
-    Serial.print("\tx: "); Serial.print(GPSRTKVar.GPSData.pos_cm[0]);
-    Serial.print("\ty: "); Serial.print(GPSRTKVar.GPSData.pos_cm[1]);
-    Serial.print("\tz: "); Serial.print(GPSRTKVar.GPSData.pos_cm[2]);
+    // In tọa độ X, Y, Z (cm)
+    Serial.print("\tx: "); Serial.print(gpsRTK.GPSData.pos_cm[0]);
+    Serial.print("\ty: "); Serial.print(gpsRTK.GPSData.pos_cm[1]);
+    Serial.print("\tz: "); Serial.print(gpsRTK.GPSData.pos_cm[2]);
 
-    Serial.print("\tstatus: "); Serial.print(GPSRTKVar.GPSData.RTK_Standard);
+    // Trạng thái RTK (VD: 0 - chưa fix, 4 - fix)
+    Serial.print("\tstatus: "); Serial.print(gpsRTK.GPSData.RTK_Standard);
 
-    Serial.print("\tdt: "); Serial.println(GPSRTKVar.GPSData.dt);
+    // Thời gian lấy mẫu
+    Serial.print("\tdt: "); Serial.println(gpsRTK.GPSData.dt);
   }
-
 }
